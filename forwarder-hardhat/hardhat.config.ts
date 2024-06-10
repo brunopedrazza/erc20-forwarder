@@ -2,6 +2,9 @@ import { HardhatUserConfig, vars } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-abi-exporter";
 
+import "./tasks/predictCloneAddress";
+import "./tasks/cloneForwarderAndFlushERC20";
+
 const privateKey = vars.get("FORWARDER_PRIVATE_KEY");
 
 const config: HardhatUserConfig = {
