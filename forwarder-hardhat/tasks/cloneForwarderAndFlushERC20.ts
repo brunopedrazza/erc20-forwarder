@@ -1,10 +1,10 @@
 import { task } from "hardhat/config";
 import fs from 'fs';
-import { int, string } from "hardhat/internal/core/params/argumentTypes";
+import { bigint, string } from "hardhat/internal/core/params/argumentTypes";
 
 
 task("cloneForwarderAndFlushERC20", "Predict clone address given a master Forwarder and a salt")
-    .addParam("salt", "The salt to derive cloned address", undefined, int, false)
+    .addParam("salt", "The salt to derive cloned address", undefined, bigint, false)
     .addParam("token", "The token to flush from cloned forwarder", undefined, string, false)
     .addParam("forwarder", "The Forwarder address to be cloned", undefined, string, true)
     .addParam("factory", "The ForwarderFactory address", undefined, string, true)

@@ -1,16 +1,16 @@
 import { task } from "hardhat/config";
 import fs from 'fs';
-import { int, string } from "hardhat/internal/core/params/argumentTypes";
+import { string, bigint } from "hardhat/internal/core/params/argumentTypes";
 
 
 task("predictCloneAddress", "Predict clone address given a master Forwarder and a salt")
-    .addParam("salt", "The salt to derive cloned address", undefined, int, false)
+    .addParam("salt", "The salt to derive cloned address", undefined, bigint, false)
     .addParam("forwarder", "The Forwarder address to be cloned", undefined, string, true)
     .addParam("factory", "The ForwarderFactory address", undefined, string, true)
     .setAction(async (taskArgs, hre) => {
         const chainId = await hre.network.provider.send("eth_chainId");
         const chainIdInt = parseInt(chainId);
-        
+
         var masterForwarderAddress = taskArgs.forwarder;
         var forwarderFactoryAddress = taskArgs.factory;
         if (!masterForwarderAddress || !forwarderFactoryAddress) {
@@ -30,6 +30,6 @@ task("predictCloneAddress", "Predict clone address given a master Forwarder and 
         const forwarderFactoryContract = ForwarderFactory.attach(forwarderFactoryAddress);
 
         console.log(`Getting predicted clone address from master Forwarder ${masterForwarderAddress} with salt ${taskArgs.salt}`);
-        const predictedAddress = await forwarderFactoryContract.predictCloneAddress(masterForwarderAddress, parseInt(taskArgs.salt));
+        const predictedAddress = await forwarderFactoryContract.predictCloneAddress(masterForwarderAddress, taskArgs.salt);
         console.log(`Predicted clone address: ${predictedAddress}`);
     });
