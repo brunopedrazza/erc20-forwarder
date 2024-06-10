@@ -10,7 +10,7 @@ task("cloneForwarderAndFlushERC20", "Predict clone address given a master Forwar
     .addParam("factory", "The ForwarderFactory address", undefined, string, true)
     .setAction(async (taskArgs, hre) => {
         const tokenContractAddress = taskArgs.token;
-        const salt = parseInt(taskArgs.salt);
+        const salt = taskArgs.salt;
 
         const chainId = await hre.network.provider.send("eth_chainId");
         const chainIdInt = parseInt(chainId);
