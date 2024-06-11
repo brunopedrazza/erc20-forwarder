@@ -1,23 +1,23 @@
 import { expect } from "chai";
 import hre from "hardhat";
-import { ForwarderFactory } from "../src/types/contracts";
 import { extractClonedForwarderAddress } from "../utils/forwarderEventsUtils";
 import { parseEther } from "ethers";
+import { predictDeterministicAddressOffchain } from "../utils/predictCloneAddressUtils";
 
 describe("ForwarderFactory", function () {
   const parentAddress = "0x03917b5178B20Bfa1Bce09312AE4EB140b87869e";
   const parentAddressMalicious = "0x29021D3658fb7aA11383a09117662248e9054223";
 
   let implementationAddress: string;
-  let forwarderFactory: ForwarderFactory;
+  let forwarderFactory: any;
+  let forwarderFactoryAddress: string;
 
   beforeEach(async function() {
-    const Forwarder = await hre.ethers.getContractFactory("Forwarder");
-    const implementation = await Forwarder.deploy();
+    const implementation = await hre.ethers.deployContract("Forwarder");
     implementationAddress = await implementation.getAddress();
 
-    const ForwarderFactory = await hre.ethers.getContractFactory("ForwarderFactory");
-    forwarderFactory = await ForwarderFactory.deploy(implementationAddress);
+    forwarderFactory = await hre.ethers.deployContract("ForwarderFactory", [implementationAddress]);
+    forwarderFactoryAddress = await forwarderFactory.getAddress();
   });
 
   describe("Deployment", function () {
@@ -109,6 +109,33 @@ describe("ForwarderFactory", function () {
     it("Should not predict same address for different salts and parents", async function () {
       const predicted = await forwarderFactory.predictCloneAddress(parentAddress, 1);
       const predicted2 = await forwarderFactory.predictCloneAddress(parentAddressMalicious, 2);
+
+      expect(predicted).not.to.equal(predicted2);
+    });
+
+    it("Should match predicted address onchain and generated offchain", async function () {
+      const salt = BigInt(1);
+      const predicted = await forwarderFactory.predictCloneAddress(parentAddress, salt);
+
+      const predicted2 = predictDeterministicAddressOffchain(implementationAddress, forwarderFactoryAddress, parentAddress, salt);
+
+      expect(predicted).to.equal(predicted2);
+    });
+
+    it("Should not match predicted address onchain and generated offchain with different salt", async function () {
+      const predicted = await forwarderFactory.predictCloneAddress(parentAddress, BigInt(1));
+
+      const predicted2 = predictDeterministicAddressOffchain(implementationAddress, forwarderFactoryAddress, parentAddress, BigInt(2));
+
+      expect(predicted).not.to.equal(predicted2);
+    });
+
+    it("Should not match predicted address onchain and generated offchain with different parent address", async function () {
+      const salt = BigInt(1);
+      const predicted = await forwarderFactory.predictCloneAddress(parentAddress, salt);
+
+      const parentAddress2 = "0x9967357E95E05E5b630B2657A36ad09Fac04632B";
+      const predicted2 = predictDeterministicAddressOffchain(implementationAddress, forwarderFactoryAddress, parentAddress2, salt);
 
       expect(predicted).not.to.equal(predicted2);
     });

@@ -1,19 +1,17 @@
 import { expect } from "chai";
 import hre from "hardhat";
-import { Forwarder } from "../src/types/contracts";
 import { parseEther } from "ethers";
 
 describe("Forwarder", function () {
   const parentAddress = "0x03917b5178B20Bfa1Bce09312AE4EB140b87869e";
 
-  let forwarder: Forwarder;
+  let forwarder: any;
   let forwarderAddress: string;
   let owner: any;
   let ownerAddress: string;
 
   beforeEach(async function() {
-    const Forwarder = await hre.ethers.getContractFactory("Forwarder");
-    forwarder = await Forwarder.deploy();
+    forwarder = await hre.ethers.deployContract("Forwarder");
     forwarderAddress = await forwarder.getAddress();
 
     [owner] = await hre.ethers.getSigners();
