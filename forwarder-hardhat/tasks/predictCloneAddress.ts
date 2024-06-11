@@ -26,8 +26,8 @@ task("predictCloneAddress", "Predict clone address given a parent and a salt")
 
         const ForwarderFactory = await hre.ethers.getContractFactory("ForwarderFactory");
         const forwarderFactoryContract = ForwarderFactory.attach(forwarderFactoryAddress);
-
-        console.log(`Getting predicted clone address for parent ${parentAddress} and salt ${taskArgs.salt}`);
+        const factoryAddress = await forwarderFactoryContract.getAddress();
+        console.log(`Getting predicted clone address with factory ${factoryAddress} for parent ${parentAddress} and salt ${taskArgs.salt}`);
         const predictedAddress = await forwarderFactoryContract.predictCloneAddress(parentAddress, taskArgs.salt);
         console.log(`Predicted clone address: ${predictedAddress}`);
     });
