@@ -3,7 +3,8 @@ import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-abi-exporter";
 
 import "./tasks/predictCloneAddress";
-import "./tasks/cloneForwarderAndFlushERC20";
+import "./tasks/cloneForwarderAndFlushTokens";
+import "./tasks/cloneForwarderAndFlushEther";
 
 const privateKey = vars.get("FORWARDER_PRIVATE_KEY");
 
