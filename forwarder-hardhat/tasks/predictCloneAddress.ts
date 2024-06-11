@@ -3,33 +3,31 @@ import fs from 'fs';
 import { string, bigint } from "hardhat/internal/core/params/argumentTypes";
 
 
-task("predictCloneAddress", "Predict clone address given a master Forwarder and a salt")
+task("predictCloneAddress", "Predict clone address given a parent and a salt")
     .addParam("salt", "The salt to derive cloned address", undefined, bigint, false)
-    .addParam("forwarder", "The Forwarder address to be cloned", undefined, string, true)
-    .addParam("factory", "The ForwarderFactory address", undefined, string, true)
+    .addParam("parent", "The parent to derive cloned address", undefined, string, false)
+    .addParam("factory", "The forward factory address", undefined, string, true)
     .setAction(async (taskArgs, hre) => {
         const chainId = await hre.network.provider.send("eth_chainId");
         const chainIdInt = parseInt(chainId);
+        const parentAddress = taskArgs.parent;
 
-        var masterForwarderAddress = taskArgs.forwarder;
         var forwarderFactoryAddress = taskArgs.factory;
-        if (!masterForwarderAddress || !forwarderFactoryAddress) {
+        if (!forwarderFactoryAddress) {
             const deployedAddressesPath = `./ignition/deployments/chain-${chainIdInt}/deployed_addresses.json`;
+            if (!fs.existsSync(deployedAddressesPath)) {
+                throw new Error("Please pass factory parameter if no contract is deployed via ignition");
+            }
             const data = fs.readFileSync(deployedAddressesPath, 'utf8');
             const parsedData = JSON.parse(data);
 
-            if (!masterForwarderAddress) {
-                masterForwarderAddress = parsedData["Forwarder#Forwarder"];
-            }
-            if (!forwarderFactoryAddress) {
-                forwarderFactoryAddress = parsedData["Forwarder#ForwarderFactory"];
-            }
+            forwarderFactoryAddress = parsedData["Forwarder#ForwarderFactory"];
         }
 
         const ForwarderFactory = await hre.ethers.getContractFactory("ForwarderFactory");
         const forwarderFactoryContract = ForwarderFactory.attach(forwarderFactoryAddress);
 
-        console.log(`Getting predicted clone address from master Forwarder ${masterForwarderAddress} with salt ${taskArgs.salt}`);
-        const predictedAddress = await forwarderFactoryContract.predictCloneAddress(masterForwarderAddress, taskArgs.salt);
+        console.log(`Getting predicted clone address for parent ${parentAddress} and salt ${taskArgs.salt}`);
+        const predictedAddress = await forwarderFactoryContract.predictCloneAddress(parentAddress, taskArgs.salt);
         console.log(`Predicted clone address: ${predictedAddress}`);
     });

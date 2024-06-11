@@ -1,33 +1,32 @@
 import { task } from "hardhat/config";
 import fs from 'fs';
 import { bigint, string } from "hardhat/internal/core/params/argumentTypes";
+import { extractClonedForwarderAddress } from "../utils/forwarderEventsUtils";
 
 
-task("cloneForwarderAndFlushERC20", "Predict clone address given a master Forwarder and a salt")
+task("cloneForwarderAndFlushTokens", "Clone Forwarder and flush tokens from it")
     .addParam("salt", "The salt to derive cloned address", undefined, bigint, false)
+    .addParam("parent", "The parent address to flush tokens to", undefined, string, false)
     .addParam("token", "The token to flush from cloned forwarder", undefined, string, false)
-    .addParam("forwarder", "The Forwarder address to be cloned", undefined, string, true)
-    .addParam("factory", "The ForwarderFactory address", undefined, string, true)
+    .addParam("factory", "The forwarder factory address", undefined, string, true)
     .setAction(async (taskArgs, hre) => {
-        const tokenContractAddress = taskArgs.token;
         const salt = taskArgs.salt;
+        const parentAddress = taskArgs.parent;
+        const tokenContractAddress = taskArgs.token;
 
         const chainId = await hre.network.provider.send("eth_chainId");
         const chainIdInt = parseInt(chainId);
         
-        var masterForwarderAddress = taskArgs.forwarder;
         var forwarderFactoryAddress = taskArgs.factory;
-        if (!masterForwarderAddress || !forwarderFactoryAddress) {
+        if (!forwarderFactoryAddress) {
             const deployedAddressesPath = `./ignition/deployments/chain-${chainIdInt}/deployed_addresses.json`;
+            if (!fs.existsSync(deployedAddressesPath)) {
+                throw new Error("Please pass factory parameter if no contract is deployed via ignition");
+            }
             const data = fs.readFileSync(deployedAddressesPath, 'utf8');
             const parsedData = JSON.parse(data);
-
-            if (!masterForwarderAddress) {
-                masterForwarderAddress = parsedData["Forwarder#Forwarder"];
-            }
-            if (!forwarderFactoryAddress) {
-                forwarderFactoryAddress = parsedData["Forwarder#ForwarderFactory"];
-            }
+            
+            forwarderFactoryAddress = parsedData["Forwarder#ForwarderFactory"];
         }
     
         const Forwarder = await hre.ethers.getContractFactory("Forwarder");
@@ -35,15 +34,16 @@ task("cloneForwarderAndFlushERC20", "Predict clone address given a master Forwar
     
         const forwarderFactoryContract = ForwarderFactory.attach(forwarderFactoryAddress);
     
-        const cloneResponse = await forwarderFactoryContract.cloneForwarder(masterForwarderAddress, salt);
+        const cloneResponse = await forwarderFactoryContract.cloneForwarder(parentAddress, salt);
         const cloneReceipt = await cloneResponse.wait();
     
-        const clonedForwarderAddress = cloneReceipt.logs.find( (ev: any) => { return ev.fragment.name == "ClonedAddress"}).args[0];
-        console.log(`(${cloneReceipt.hash}) Cloned master Forwarder ${masterForwarderAddress} with salt ${salt} on address ${clonedForwarderAddress}`);
+        const clonedForwarderAddress = await extractClonedForwarderAddress(cloneResponse);
+
+        console.log(`(txHash ${cloneReceipt.hash}) Cloned forwarder for parent ${parentAddress} with salt ${salt} on address ${clonedForwarderAddress}`);
     
         const clonedForwarderContract = Forwarder.attach(clonedForwarderAddress);
     
-        const flushResponse = await clonedForwarderContract.flushERC20(tokenContractAddress);
+        const flushResponse = await clonedForwarderContract.flushTokens(tokenContractAddress);
         const flushReceipt = await flushResponse.wait();
     
         const TestToken = await hre.ethers.getContractFactory("TestToken");
@@ -62,5 +62,5 @@ task("cloneForwarderAndFlushERC20", "Predict clone address given a master Forwar
     
         const convertedAmount = hre.ethers.formatUnits(BigInt(transferAmount), tokenDecimals);
     
-        console.log(`(${flushReceipt.hash}) Flush Transfer ${convertedAmount} ${tokenSymbol} from ${from} to ${to}`);
+        console.log(`(txHash ${flushReceipt.hash}) Flush Transfer ${convertedAmount} ${tokenSymbol} from ${from} to ${to}`);
     });
