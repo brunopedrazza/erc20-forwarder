@@ -1,6 +1,6 @@
 import { task } from "hardhat/config";
-import fs from 'fs';
 import { string, bigint } from "hardhat/internal/core/params/argumentTypes";
+import { getDeployedAddressesData } from "../utils/deployedAddressesUtils";
 
 
 task("predictCloneAddressOnchain", "Predict clone address given a parent and a salt onchain")
@@ -14,14 +14,8 @@ task("predictCloneAddressOnchain", "Predict clone address given a parent and a s
 
         var forwarderFactoryAddress = taskArgs.factory;
         if (!forwarderFactoryAddress) {
-            const deployedAddressesPath = `./ignition/deployments/chain-${chainIdInt}/deployed_addresses.json`;
-            if (!fs.existsSync(deployedAddressesPath)) {
-                throw new Error("Please pass factory parameter if no contract is deployed via ignition");
-            }
-            const data = fs.readFileSync(deployedAddressesPath, 'utf8');
-            const parsedData = JSON.parse(data);
-
-            forwarderFactoryAddress = parsedData["Forwarder#ForwarderFactory"];
+            const data = getDeployedAddressesData(chainIdInt);
+            forwarderFactoryAddress = data["Forwarder#ForwarderFactory"];
         }
 
         const ForwarderFactory = await hre.ethers.getContractFactory("ForwarderFactory");

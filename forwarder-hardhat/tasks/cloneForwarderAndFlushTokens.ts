@@ -1,7 +1,6 @@
 import { task } from "hardhat/config";
-import fs from 'fs';
 import { bigint, string } from "hardhat/internal/core/params/argumentTypes";
-import { extractClonedForwarderAddress } from "../utils/forwarderEventsUtils";
+import { getDeployedAddressesData } from "../utils/deployedAddressesUtils";
 
 
 task("cloneForwarderAndFlushTokens", "Clone Forwarder and flush tokens from it")
@@ -19,38 +18,43 @@ task("cloneForwarderAndFlushTokens", "Clone Forwarder and flush tokens from it")
         
         var forwarderFactoryAddress = taskArgs.factory;
         if (!forwarderFactoryAddress) {
-            const deployedAddressesPath = `./ignition/deployments/chain-${chainIdInt}/deployed_addresses.json`;
-            if (!fs.existsSync(deployedAddressesPath)) {
-                throw new Error("Please pass factory parameter if no contract is deployed via ignition");
-            }
-            const data = fs.readFileSync(deployedAddressesPath, 'utf8');
-            const parsedData = JSON.parse(data);
-            
-            forwarderFactoryAddress = parsedData["Forwarder#ForwarderFactory"];
+            const data = getDeployedAddressesData(chainIdInt);
+            forwarderFactoryAddress = data["Forwarder#ForwarderFactory"];
         }
-    
+
+        const TestToken = await hre.ethers.getContractFactory("TestToken");
+        const erc20TokenContract = TestToken.attach(tokenContractAddress);
+        const tokenDecimals = await erc20TokenContract.decimals();
+        const tokenSymbol = await erc20TokenContract.symbol();
+
         const Forwarder = await hre.ethers.getContractFactory("Forwarder");
         const ForwarderFactory = await hre.ethers.getContractFactory("ForwarderFactory");
-    
+        
         const forwarderFactoryContract = ForwarderFactory.attach(forwarderFactoryAddress);
-    
-        const cloneResponse = await forwarderFactoryContract.cloneForwarder(parentAddress, salt);
-        const cloneReceipt = await cloneResponse.wait();
-    
-        const clonedForwarderAddress = await extractClonedForwarderAddress(cloneResponse);
 
-        console.log(`(txHash ${cloneReceipt.hash}) Cloned forwarder for parent ${parentAddress} with salt ${salt} on address ${clonedForwarderAddress}`);
-    
+        const clonedForwarderAddress = await forwarderFactoryContract.predictCloneAddress(parentAddress, salt);
+
+        const forwarderBalance = await erc20TokenContract.balanceOf(clonedForwarderAddress);
+        if (forwarderBalance == 0) {
+            console.log(`No ${tokenSymbol} tokens to flush on forwarder ${clonedForwarderAddress}`);
+            return;
+        }
+
         const clonedForwarderContract = Forwarder.attach(clonedForwarderAddress);
+        const deployedCode = await clonedForwarderContract.getDeployedCode();
+
+        if (!deployedCode) {
+            const cloneResponse = await forwarderFactoryContract.cloneForwarder(parentAddress, salt);
+            const cloneReceipt = await cloneResponse.wait();
+    
+            console.log(`(txHash ${cloneReceipt.hash}) Cloned forwarder for parent ${parentAddress} with salt ${salt} on address ${clonedForwarderAddress}`);
+        }
+        else {
+            console.log(`Cloned forwarder on address ${clonedForwarderAddress} is already initialized`);
+        }
     
         const flushResponse = await clonedForwarderContract.flushTokens(tokenContractAddress);
         const flushReceipt = await flushResponse.wait();
-    
-        const TestToken = await hre.ethers.getContractFactory("TestToken");
-        const erc20TokenContract = TestToken.attach(tokenContractAddress);
-    
-        const tokenDecimals = await erc20TokenContract.decimals();
-        const tokenSymbol = await erc20TokenContract.symbol();
     
         const transferEvent = flushReceipt.logs[0];
         const transferAmount = parseInt(transferEvent.data);

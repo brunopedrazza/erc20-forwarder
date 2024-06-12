@@ -1,7 +1,7 @@
 import { task } from "hardhat/config";
-import fs from 'fs';
 import { bigint, string } from "hardhat/internal/core/params/argumentTypes";
-import { extractClonedForwarderAddress, extractForwarderDeposited } from "../utils/forwarderEventsUtils";
+import { extractForwarderDeposited } from "../utils/forwarderEventsUtils";
+import { getDeployedAddressesData } from "../utils/deployedAddressesUtils";
 
 
 task("cloneForwarderAndFlushEther", "Clone Forwarder and flush Ether from it")
@@ -17,35 +17,44 @@ task("cloneForwarderAndFlushEther", "Clone Forwarder and flush Ether from it")
         
         var forwarderFactoryAddress = taskArgs.factory;
         if (!forwarderFactoryAddress) {
-            const deployedAddressesPath = `./ignition/deployments/chain-${chainIdInt}/deployed_addresses.json`;
-            if (!fs.existsSync(deployedAddressesPath)) {
-                throw new Error("Please pass factory parameter if no contract is deployed via ignition");
-            }
-            const data = fs.readFileSync(deployedAddressesPath, 'utf8');
-            const parsedData = JSON.parse(data);
-            
-            forwarderFactoryAddress = parsedData["Forwarder#ForwarderFactory"];
+            const data = getDeployedAddressesData(chainIdInt);
+            forwarderFactoryAddress = data["Forwarder#ForwarderFactory"];
         }
-    
+        
         const Forwarder = await hre.ethers.getContractFactory("Forwarder");
         const ForwarderFactory = await hre.ethers.getContractFactory("ForwarderFactory");
     
         const forwarderFactoryContract = ForwarderFactory.attach(forwarderFactoryAddress);
-    
-        // If cloned forwarder has balance, Ethers will be flushed on init so it's not necessary to explicitly flush them
-        const cloneResponse = await forwarderFactoryContract.cloneForwarder(parentAddress, salt);
-        const cloneReceipt = await cloneResponse.wait();
-        
-        const clonedForwarderAddress = await extractClonedForwarderAddress(cloneResponse);
-        console.log(`(txHash ${cloneReceipt.hash}) Cloned forwarder for parent ${parentAddress} with salt ${salt} on address ${clonedForwarderAddress}`);
 
-        const value = await extractForwarderDeposited(cloneResponse);
+        const clonedForwarderAddress = await forwarderFactoryContract.predictCloneAddress(parentAddress, salt);
 
-        if (!value) {
-            console.log("No Ethers to flush");
+        const forwarderBalance = await hre.network.provider.send("eth_getBalance", [clonedForwarderAddress, "latest"]);
+        if (forwarderBalance == "0x0") {
+            console.log(`No ETH to flush on forwarder ${clonedForwarderAddress}`);
             return;
         }
+        
+        const clonedForwarderContract = Forwarder.attach(clonedForwarderAddress);
+        const deployedCode = await clonedForwarderContract.getDeployedCode();
 
-        const convertedValue = hre.ethers.formatEther(value);
-        console.log(`Flushed ${convertedValue} ETH from ${clonedForwarderAddress} to ${parentAddress}`);
+        if (!deployedCode) {
+            // If cloned forwarder has balance, Ethers will be flushed on init so it's not necessary to explicitly flush them
+            const cloneResponse = await forwarderFactoryContract.cloneForwarder(parentAddress, salt);
+            const cloneReceipt = await cloneResponse.wait();
+    
+            console.log(`(txHash ${cloneReceipt.hash}) Cloned forwarder for parent ${parentAddress} with salt ${salt} on address ${clonedForwarderAddress}`);
+
+            const value = await extractForwarderDeposited(cloneResponse);
+
+            if (!value) {
+                console.log("No Ethers to flush");
+                return;
+            }
+
+            const convertedValue = hre.ethers.formatEther(value);
+            console.log(`Flushed ${convertedValue} ETH from ${clonedForwarderAddress} to ${parentAddress}`);
+        }
+        else {
+            console.log(`Cloned forwarder on address ${clonedForwarderAddress} is already initialized`);
+        }
     });
