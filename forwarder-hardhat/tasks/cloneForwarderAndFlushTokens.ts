@@ -12,13 +12,11 @@ task("cloneForwarderAndFlushTokens", "Clone Forwarder and flush tokens from it")
         const salt = taskArgs.salt;
         const parentAddress = taskArgs.parent;
         const tokenContractAddress = taskArgs.token;
-
-        const chainId = await hre.network.provider.send("eth_chainId");
-        const chainIdInt = parseInt(chainId);
         
         var forwarderFactoryAddress = taskArgs.factory;
         if (!forwarderFactoryAddress) {
-            const data = getDeployedAddressesData(chainIdInt);
+            const chainId = await hre.network.provider.send("eth_chainId");
+            const data = getDeployedAddressesData(chainId);
             forwarderFactoryAddress = data["Forwarder#ForwarderFactory"];
         }
 

@@ -8,14 +8,13 @@ task("predictCloneAddressOffchain", "Predict clone address given a parent and a 
     .addParam("parent", "The parent to derive cloned address", undefined, string, false)
     .addParam("factory", "The forward factory address", undefined, string, true)
     .setAction(async (taskArgs, hre) => {
-        const chainId = await hre.network.provider.send("eth_chainId");
-        const chainIdInt = parseInt(chainId);
         const parentAddress = taskArgs.parent;
         const salt = taskArgs.salt;
 
         var forwarderFactoryAddress = taskArgs.factory;
         if (!forwarderFactoryAddress) {
-            const data = getDeployedAddressesData(chainIdInt);
+            const chainId = await hre.network.provider.send("eth_chainId");
+            const data = getDeployedAddressesData(chainId);
             forwarderFactoryAddress = data["Forwarder#ForwarderFactory"];
         }
 
