@@ -13,7 +13,7 @@ public class PredictDeterministicAddress
         const string salt = "84735";
             
         var predictedAddress = EthereumAddressPredictor.PredictDeterministicAddress(implementation, salt, factory, parentAddress);
-        Assert.AreEqual(shouldPredict, predictedAddress);
+        Assert.That(predictedAddress, Is.EqualTo(shouldPredict));
     }
     
     [Test]
@@ -27,7 +27,7 @@ public class PredictDeterministicAddress
         const string salt = "38495";
             
         var predictedAddress = EthereumAddressPredictor.PredictDeterministicAddress(implementation, salt, factory, parentAddress);
-        Assert.AreNotEqual(shouldNotPredict, predictedAddress);
+        Assert.That(predictedAddress, Is.Not.EqualTo(shouldNotPredict));
     }
     
     [Test]
@@ -41,6 +41,6 @@ public class PredictDeterministicAddress
         const string salt = "84735";
             
         var predictedAddress = EthereumAddressPredictor.PredictDeterministicAddress(implementation, salt, factory, parentAddress);
-        Assert.AreNotEqual(shouldNotPredict, predictedAddress);
+        Assert.That(predictedAddress, Is.Not.EqualTo(shouldNotPredict));
     }
 }
