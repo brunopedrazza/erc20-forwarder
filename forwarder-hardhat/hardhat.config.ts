@@ -30,6 +30,7 @@ const config: HardhatUserConfig = {
       sepolia: vars.get("ETHERSCAN_API_KEY"),
       polygon: vars.get("POLYGONSCAN_API_KEY"),
       polygonAmoy: vars.get("POLYGONSCAN_API_KEY"),
+      base: vars.get("BASESCAN_API_KEY"),
     }
   },
   networks: {
@@ -56,6 +57,11 @@ const config: HardhatUserConfig = {
     },
     polygonAmoy: {
       url: vars.get("AMOY_RPC_ENDPOINT"),
+      accounts: [privateKey],
+      gas: 12450000
+    },
+    base: {
+      url: vars.get("BASE_RPC_ENDPOINT"),
       accounts: [privateKey],
       gas: 12450000
     },
